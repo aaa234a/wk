@@ -2,86 +2,75 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>ページ編集</title>
+    <title>ユーザー編集</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="sidebar">
-      <a href="/">← ホーム</a><br />
-      <a href="/users.html">ユーザー一覧</a><br />
+      <a href="/">← ホーム</a>
     </div>
 
     <div id="content">
-      <h1>ページ編集</h1>
-      <label>ページ名</label><br />
-      <input id="pagename" style="width: 300px" /><br /><br />
+      <h1>ユーザー編集</h1>
 
-      <label>内容（Wiki形式）</label><br />
+      <label>ユーザー名 (Mツイユーザー名)</label><br />
+      <input id="username" style="width: 300px" /><br /><br />
+
+      <div>
+        <button onclick="wrapTag('**')"><b>B</b></button>
+        <button onclick="wrapTag('*')"><i>I</i></button>
+        <button onclick="wrapTag('__')"><u>U</u></button>
+        <button onclick="wrapTag('~~')"><del>DEL</del></button>
+      </div>
+
+      <label>説明 (Wiki記法)</label><br />
       <textarea id="body" style="width: 100%; height: 200px"></textarea
       ><br /><br />
 
+      <label>アイコンURL</label><br />
+      <input id="iconURL" style="width: 300px" /><br /><br />
+
       <button id="savebtn">保存</button>
-
-      <hr />
-      <h2>アイコン設定</h2>
-      <p>あなたのアイコンを変更できます。（最大3MB）</p>
-
-      <form id="iconForm">
-        <input type="file" id="iconFile" accept="image/*" /><br /><br />
-        <button>アップロード</button>
-      </form>
-
-      <h3>プレビュー</h3>
-      <img
-        id="iconPrev"
-        class="user-icon"
-        style="width: 100px; height: 100px; border-radius: 50%"
-      />
     </div>
 
     <script>
-      document.getElementById("iconFile").onchange = (e) => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = () => (document.getElementById("iconPrev").src = r.result);
-        r.readAsDataURL(f);
-      };
-      document.getElementById("iconForm").onsubmit = async (e) => {
-        e.preventDefault();
-        const file = iconFile.files[0];
-        if (!file) return alert("画像を選んでください！");
-        const fd = new FormData();
-        fd.append("icon", file);
-        const res = await fetch("/api/icon", { method: "POST", body: fd }).then(
-          (r) => r.json()
-        );
-        if (res.error) alert(res.error);
-        else alert("保存しました！");
-      };
+      function wrapTag(tag) {
+        const textarea = document.getElementById("body");
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.substring(start, end);
+        textarea.setRangeText(tag + selected + tag, start, end, "end");
+      }
 
       async function load() {
         const url = new URL(location.href);
-        const name = url.searchParams.get("page");
-        if (!name) return;
-        pagename.value = name;
+        const uname = url.searchParams.get("username");
+        if (!uname) return;
+        username.value = uname;
         const d = await fetch(
-          "/api/page?name=" + encodeURIComponent(name)
+          "/api/user?username=" + encodeURIComponent(uname)
         ).then((r) => r.json());
-        if (d.page) body.value = d.page.body;
+        if (d.user) {
+          body.value = d.user.body || "";
+          iconURL.value = d.user.iconURL || "";
+        }
       }
       load();
 
-      document.getElementById("savebtn").onclick = async () => {
-        const name = pagename.value.trim();
-        if (!name) return alert("ページ名が必要");
+      savebtn.onclick = async () => {
+        const uname = username.value.trim();
+        if (!uname) return alert("ユーザー名必須");
         const res = await fetch("/api/edit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, body: body.value }),
+          body: JSON.stringify({
+            username: uname,
+            body: body.value,
+            iconURL: iconURL.value,
+          }),
         }).then((r) => r.json());
         if (res.error) alert(res.error);
-        else location.href = "/view.html?page=" + encodeURIComponent(name);
+        else location.href = "/view.html?username=" + encodeURIComponent(uname);
       };
     </script>
   </body>

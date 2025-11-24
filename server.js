@@ -1,12 +1,13 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
 const bodyParser = require("body-parser");
-const multer = require("multer");
 const sanitizeHtml = require("sanitize-html");
 const cors = require("cors");
 
 const app = express();
-const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static("public"));
 
 const MONGO_URL = process.env.MONGO_URI;
 if (!MONGO_URL) {
@@ -25,27 +26,41 @@ MongoClient.connect(MONGO_URL)
     process.exit(1);
   });
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static("public"));
-
 // --- ページ編集 ---
 app.post("/api/edit", async (req, res) => {
-  const { name, body } = req.body;
+  const { username, body, iconURL } = req.body;
   const ip = req.ip;
+  if (!username) return res.json({ error: "ユーザー名が必要です" });
 
-  if (!name) return res.json({ error: "ページ名が必要" });
+  const cleanBody = sanitizeHtml(body, {
+    allowedTags: [
+      "b",
+      "i",
+      "u",
+      "del",
+      "span",
+      "h2",
+      "h3",
+      "p",
+      "br",
+      "ul",
+      "ol",
+      "li",
+    ],
+    allowedAttributes: { span: ["style"] },
+  });
 
-  await db.collection("pages").updateOne(
-    { name },
+  // --- 既存 /api/edit の $push に history 配列追加済み ---
+  await db.collection("users").updateOne(
+    { username },
     {
-      $set: { name, body, lastEditorIP: ip },
+      $set: { username, body: cleanBody, iconURL, lastEditorIP: ip },
       $push: {
         history: {
           time: Date.now(),
           ip,
           masked: ip.replace(/\.\d+$/, ".*"),
-          raw: body,
+          raw: cleanBody,
         },
       },
     },
@@ -55,17 +70,11 @@ app.post("/api/edit", async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- ページ取得 ---
-app.get("/api/page", async (req, res) => {
-  const name = req.query.name;
-  const page = await db.collection("pages").findOne({ name });
-  res.json({ page });
-});
-
-// --- ページ一覧 ---
-app.get("/api/pages", async (req, res) => {
-  const pages = await db.collection("pages").find({}).toArray();
-  res.json(pages);
+// --- ユーザー取得 ---
+app.get("/api/user", async (req, res) => {
+  const username = req.query.username;
+  const user = await db.collection("users").findOne({ username });
+  res.json({ user });
 });
 
 // --- ユーザー一覧 ---
@@ -74,26 +83,5 @@ app.get("/api/users", async (req, res) => {
   res.json(users);
 });
 
-// --- アイコンアップロード ---
-app.post("/api/icon", upload.single("icon"), async (req, res) => {
-  const ip = req.ip;
-  if (!req.file) return res.json({ error: "ファイルが必要です" });
-
-  const base64 = "data:image/png;base64," + req.file.buffer.toString("base64");
-
-  await db
-    .collection("users")
-    .updateOne(
-      { name: ip },
-      { $set: { name: ip, icon: base64 } },
-      { upsert: true }
-    );
-
-  res.json({ ok: true });
-});
-
-// --- サーバ起動 ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Wiki running http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Wiki running http://localhost:${PORT}`));

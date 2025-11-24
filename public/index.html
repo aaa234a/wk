@@ -2,42 +2,35 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>MツイートWiki</title>
+    <title>MツイユーザーWiki</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="sidebar">
-      <h2>Mツイート Wiki</h2>
-      <a href="/edit.html">新規ページ作成</a><br />
-      <a href="/users.html">ユーザー一覧</a><br />
+      <h2>MツイユーザーWiki</h2>
+      <a href="/edit.html">ユーザー追加/編集</a>
     </div>
 
     <div id="content">
-      <h1>全ページ一覧</h1>
+      <h1>ユーザー一覧</h1>
       <div id="tiles" class="tile-grid"></div>
     </div>
 
     <script>
       async function load() {
-        const pages = await fetch("/api/pages").then((r) => r.json());
         const users = await fetch("/api/users").then((r) => r.json());
-        const ipToIcon = {};
-        users.forEach((u) => (ipToIcon[u.name] = u.icon));
-
         const box = document.getElementById("tiles");
-        pages.forEach((p) => {
-          const icon = ipToIcon[p.lastEditorIP] || "";
-          const maskIP = p.lastEditorIP
-            ? p.lastEditorIP.replace(/\.\d+$/, ".*")
+        users.forEach((u) => {
+          const maskIP = u.lastEditorIP
+            ? u.lastEditorIP.replace(/\.\d+$/, ".*")
             : "???";
-
           const div = document.createElement("div");
           div.className = "tile";
-          div.innerHTML = `<img class="tile-icon" src="${icon}"><div class="tile-title"><a href="/view.html?page=${encodeURIComponent(
-            p.name
-          )}">${
-            p.name
-          }</a></div><div class="tile-small">編集者: ${maskIP}</div>`;
+          div.innerHTML = `<img class="tile-icon" src="${u.iconURL || ""}">
+      <div class="tile-title"><a href="/view.html?username=${encodeURIComponent(
+        u.username
+      )}">${u.username}</a></div>
+      <div class="tile-small">IP: ${maskIP}</div>`;
           box.appendChild(div);
         });
       }

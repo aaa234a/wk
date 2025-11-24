@@ -1,9 +1,8 @@
 body {
   margin: 0;
-  font-family: "Helvetica Neue", "Arial", "Noto Sans JP", sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   background: #f8f9fa;
   color: #202122;
-  line-height: 1.6;
 }
 
 a {
@@ -15,7 +14,7 @@ a:hover {
 }
 
 #sidebar {
-  width: 200px;
+  width: 220px;
   background: #fff;
   border-right: 1px solid #a2a9b1;
   padding: 15px;
@@ -25,43 +24,42 @@ a:hover {
   left: 0;
   overflow-y: auto;
 }
-
-#sidebar h3 {
-  font-size: 15px;
+#sidebar h2 {
+  font-size: 18px;
   margin-top: 0;
-  border-bottom: 1px solid #a2a9b1;
-  padding-bottom: 4px;
-  margin-bottom: 10px;
 }
-
 #content {
-  margin-left: 230px;
+  margin-left: 240px;
   padding: 20px;
 }
 
-#content h1 {
-  font-size: 28px;
-  margin-top: 0;
-  border-bottom: 1px solid #a2a9b1;
-  padding-bottom: 6px;
+.tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-#content h2 {
-  font-size: 22px;
-  border-bottom: 1px solid #c8ccd1;
-  padding-bottom: 3px;
-  margin-top: 30px;
-}
-
-.page-box {
+.tile {
   border: 1px solid #a2a9b1;
+  border-radius: 6px;
   padding: 10px;
   background: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: 0.15s;
+  width: 150px;
+  text-align: center;
 }
-.page-box:hover {
-  background: #f0f2f5;
+.tile img.tile-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 5px;
+}
+.tile-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.tile-small {
+  font-size: 12px;
+  color: #555;
 }
 
 textarea {
@@ -97,48 +95,4 @@ button:hover {
   padding: 10px;
   margin-bottom: 10px;
   border-radius: 4px;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-top: 12px;
-}
-table th,
-table td {
-  border: 1px solid #a2a9b1;
-  padding: 5px 8px;
-  background: #fff;
-}
-table th {
-  background: #f5f5f5;
-}
-
-.tile-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.tile {
-  border: 1px solid #a2a9b1;
-  border-radius: 6px;
-  padding: 10px;
-  background: #fff;
-  width: 150px;
-  text-align: center;
-}
-.tile img.tile-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin-bottom: 5px;
-}
-.tile-title {
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-.tile-small {
-  font-size: 12px;
-  color: #555;
 }
