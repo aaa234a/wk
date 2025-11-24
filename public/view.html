@@ -9,30 +9,58 @@
   <body>
     <div id="sidebar">
       <a href="/">← ホーム</a><br />
-      <a id="editBtn">編集</a><br />
-      <a id="historyBtn">履歴</a><br />
+      <a id="editlink">編集</a><br />
+      <a id="historylink">履歴</a><br />
     </div>
 
     <div id="content">
       <h1 id="title"></h1>
-      <div id="body"></div>
+      <div id="pagebody" class="wikibody"></div>
+
+      <hr />
+
+      <h3>最終編集者</h3>
+      <div id="editorBox"></div>
     </div>
 
     <script>
-      const p = new URL(location).searchParams.get("title");
+      async function load() {
+        const url = new URL(location.href);
+        const name = url.searchParams.get("page");
+        if (!name) return;
 
-      fetch("/api/page/" + p)
-        .then((r) => r.json())
-        .then((d) => {
-          document.getElementById("title").textContent = d.title;
-          document.getElementById("body").innerHTML = d.content;
-        });
+        editlink.href = "/edit.html?page=" + encodeURIComponent(name);
+        historylink.href = "/history.html?page=" + encodeURIComponent(name);
 
-      document.getElementById("editBtn").onclick = () =>
-        (location.href = "/edit.html?title=" + encodeURIComponent(p));
+        const d = await fetch(
+          "/api/page?name=" + encodeURIComponent(name)
+        ).then((r) => r.json());
+        if (!d.page) return;
 
-      document.getElementById("historyBtn").onclick = () =>
-        (location.href = "/history.html?title=" + encodeURIComponent(p));
+        title.textContent = d.page.name;
+
+        const html = d.page.body
+          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+          .replace(/__(.*?)__/g, "<u>$1</u>")
+          .replace(/##(.*?)##/g, "<h2>$1</h2>");
+
+        pagebody.innerHTML = html;
+
+        // アイコン
+        const users = await fetch("/api/users").then((r) => r.json());
+        const ip = d.page.lastEditorIP;
+        const user = users.find((u) => u.name === ip);
+        const icon = user ? user.icon : "";
+
+        const maskIP = ip ? ip.replace(/\.\d+$/, ".*") : "???";
+
+        editorBox.innerHTML = `
+    <img src="${icon || ""}" style="width:70px;height:70px;border-radius:50%;">
+    <div>IP: ${maskIP}</div>
+  `;
+      }
+
+      load();
     </script>
   </body>
 </html>
