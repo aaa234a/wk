@@ -46,7 +46,12 @@
         const start = textarea.selectionStart,
           end = textarea.selectionEnd;
         const selected = textarea.value.substring(start, end);
-        textarea.setRangeText(openTag + selected + closeTag, start, end, "end");
+        textarea.setRangeText(
+          openTag + selected + (closeTag || ""),
+          start,
+          end,
+          "end"
+        );
       }
 
       async function load() {

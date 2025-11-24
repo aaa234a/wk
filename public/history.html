@@ -54,11 +54,11 @@
             div.innerHTML = `<div><b>編集者IP:</b> ${
               h.masked
             } | <b>日時:</b> ${date}</div>
-      <div>${wikiToHtml(h.raw)}</div>`;
+                     <div>${wikiToHtml(h.raw)}</div>`;
             box.appendChild(div);
           });
       }
-      loadHistory();
+      load();
     </script>
   </body>
 </html>
