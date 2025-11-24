@@ -1,17 +1,20 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
 const bodyParser = require("body-parser");
+const multer = require("multer");
 const sanitizeHtml = require("sanitize-html");
 const cors = require("cors");
 
 const app = express();
+const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
 const MONGO_URL = process.env.MONGO_URI;
 if (!MONGO_URL) {
-  console.error("ERROR: MONGO_URI が設定されていません！");
+  console.error("MONGO_URI が必要");
   process.exit(1);
 }
 
@@ -22,15 +25,15 @@ MongoClient.connect(MONGO_URL)
     console.log("MongoDB connected");
   })
   .catch((err) => {
-    console.error("MongoDB connection error:", err);
+    console.error(err);
     process.exit(1);
   });
 
 // --- ページ編集 ---
 app.post("/api/edit", async (req, res) => {
-  const { username, body, iconURL } = req.body;
-  const ip = req.ip;
-  if (!username) return res.json({ error: "ユーザー名が必要です" });
+  const { username, body } = req.body;
+  const ip = req.headers["x-forwarded-for"] || req.ip;
+  if (!username) return res.json({ error: "ユーザー名必須" });
 
   const cleanBody = sanitizeHtml(body, {
     allowedTags: [
@@ -50,11 +53,10 @@ app.post("/api/edit", async (req, res) => {
     allowedAttributes: { span: ["style"] },
   });
 
-  // --- 既存 /api/edit の $push に history 配列追加済み ---
   await db.collection("users").updateOne(
     { username },
     {
-      $set: { username, body: cleanBody, iconURL, lastEditorIP: ip },
+      $set: { username, body: cleanBody, lastEditorIP: ip },
       $push: {
         history: {
           time: Date.now(),
@@ -66,6 +68,26 @@ app.post("/api/edit", async (req, res) => {
     },
     { upsert: true }
   );
+
+  res.json({ ok: true });
+});
+
+// --- アイコンアップロード ---
+app.post("/api/icon", upload.single("icon"), async (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.ip;
+  const username = req.body.username;
+  if (!req.file || !username)
+    return res.json({ error: "画像とユーザー名必須" });
+
+  const base64 = "data:image/png;base64," + req.file.buffer.toString("base64");
+
+  await db
+    .collection("users")
+    .updateOne(
+      { username },
+      { $set: { username, icon: base64 } },
+      { upsert: true }
+    );
 
   res.json({ ok: true });
 });

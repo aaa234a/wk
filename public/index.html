@@ -26,7 +26,7 @@
             : "???";
           const div = document.createElement("div");
           div.className = "tile";
-          div.innerHTML = `<img class="tile-icon" src="${u.iconURL || ""}">
+          div.innerHTML = `<img class="tile-icon" src="${u.icon || ""}">
       <div class="tile-title"><a href="/view.html?username=${encodeURIComponent(
         u.username
       )}">${u.username}</a></div>

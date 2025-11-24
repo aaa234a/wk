@@ -13,7 +13,7 @@
     <div id="content">
       <h1>ユーザー編集</h1>
 
-      <label>ユーザー名 (Mツイユーザー名)</label><br />
+      <label>ユーザー名</label><br />
       <input id="username" style="width: 300px" /><br /><br />
 
       <div>
@@ -21,56 +21,77 @@
         <button onclick="wrapTag('*')"><i>I</i></button>
         <button onclick="wrapTag('__')"><u>U</u></button>
         <button onclick="wrapTag('~~')"><del>DEL</del></button>
+        <button onclick="wrapTag('[size=24]','[/size]')">大</button>
+        <button onclick="wrapTag('[size=16]','[/size]')">中</button>
+        <button onclick="wrapTag('[size=12]','[/size]')">小</button>
       </div>
 
       <label>説明 (Wiki記法)</label><br />
       <textarea id="body" style="width: 100%; height: 200px"></textarea
       ><br /><br />
 
-      <label>アイコンURL</label><br />
-      <input id="iconURL" style="width: 300px" /><br /><br />
+      <h3>アイコンアップロード（3MBまで）</h3>
+      <form id="iconForm">
+        <input type="file" id="iconFile" accept="image/*" /><br /><br />
+        <button>アップロード</button>
+      </form>
+      <img id="iconPreview" class="user-icon" /><br /><br />
 
       <button id="savebtn">保存</button>
     </div>
 
     <script>
-      function wrapTag(tag) {
+      function wrapTag(openTag, closeTag) {
         const textarea = document.getElementById("body");
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+        const start = textarea.selectionStart,
+          end = textarea.selectionEnd;
         const selected = textarea.value.substring(start, end);
-        textarea.setRangeText(tag + selected + tag, start, end, "end");
+        textarea.setRangeText(openTag + selected + closeTag, start, end, "end");
       }
 
       async function load() {
         const url = new URL(location.href);
         const uname = url.searchParams.get("username");
         if (!uname) return;
-        username.value = uname;
+        document.getElementById("username").value = uname;
         const d = await fetch(
           "/api/user?username=" + encodeURIComponent(uname)
         ).then((r) => r.json());
         if (d.user) {
-          body.value = d.user.body || "";
-          iconURL.value = d.user.iconURL || "";
+          document.getElementById("body").value = d.user.body || "";
+          document.getElementById("iconPreview").src = d.user.icon || "";
         }
       }
       load();
 
       savebtn.onclick = async () => {
-        const uname = username.value.trim();
+        const uname = document.getElementById("username").value.trim();
         if (!uname) return alert("ユーザー名必須");
         const res = await fetch("/api/edit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             username: uname,
-            body: body.value,
-            iconURL: iconURL.value,
+            body: document.getElementById("body").value,
           }),
         }).then((r) => r.json());
         if (res.error) alert(res.error);
         else location.href = "/view.html?username=" + encodeURIComponent(uname);
+      };
+
+      document.getElementById("iconForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const file = document.getElementById("iconFile").files[0];
+        const uname = document.getElementById("username").value.trim();
+        if (!file || !uname) return alert("画像とユーザー名必須");
+        const fd = new FormData();
+        fd.append("icon", file);
+        fd.append("username", uname);
+        const res = await fetch("/api/icon", { method: "POST", body: fd }).then(
+          (r) => r.json()
+        );
+        if (res.error) alert(res.error);
+        else alert("アップロード成功！");
       };
     </script>
   </body>

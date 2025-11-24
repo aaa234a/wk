@@ -17,6 +17,22 @@
     </div>
 
     <script>
+      function wikiToHtml(str) {
+        if (!str) return "";
+        return str
+          .replace(/\n/g, "<br>")
+          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+          .replace(/\*(.*?)\*/g, "<i>$1</i>")
+          .replace(/__(.*?)__/g, "<u>$1</u>")
+          .replace(/~~(.*?)~~/g, "<del>$1</del>")
+          .replace(/### (.*)/g, "<h3>$1</h3>")
+          .replace(/## (.*)/g, "<h2>$1</h2>")
+          .replace(
+            /\[size=(\d+)\](.*?)\[\/size\]/g,
+            '<span style="font-size:$1px">$2</span>'
+          );
+      }
+
       async function loadHistory() {
         const url = new URL(location.href);
         const uname = url.searchParams.get("username");
@@ -27,31 +43,18 @@
           "/api/user?username=" + encodeURIComponent(uname)
         ).then((r) => r.json());
         if (!d.user || !d.user.history) return;
-
         const box = document.getElementById("historyBox");
-        const users = await fetch("/api/users").then((r) => r.json());
-
         d.user.history
           .slice()
           .reverse()
           .forEach((h) => {
-            const user = users.find((u) => u.username === uname);
-            const icon = user ? user.iconURL : "";
             const div = document.createElement("div");
             div.className = "history-box";
             const date = new Date(h.time).toLocaleString();
-
-            let html = h.raw
-              .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-              .replace(/\*(.*?)\*/g, "<i>$1</i>")
-              .replace(/__(.*?)__/g, "<u>$1</u>")
-              .replace(/~~(.*?)~~/g, "<del>$1</del>")
-              .replace(/### (.*)/g, "<h3>$1</h3>")
-              .replace(/## (.*)/g, "<h2>$1</h2>");
-
-            div.innerHTML = `<img src="${icon}" class="user-icon">
-      <div><b>編集者IP:</b> ${h.masked} | <b>日時:</b> ${date}</div>
-      <div>${html}</div>`;
+            div.innerHTML = `<div><b>編集者IP:</b> ${
+              h.masked
+            } | <b>日時:</b> ${date}</div>
+      <div>${wikiToHtml(h.raw)}</div>`;
             box.appendChild(div);
           });
       }

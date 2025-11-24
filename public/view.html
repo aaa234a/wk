@@ -9,6 +9,7 @@
     <div id="sidebar">
       <a href="/">← ホーム</a>
       <a id="editlink">編集</a>
+      <a id="historylink">履歴</a>
     </div>
 
     <div id="content">
@@ -18,29 +19,36 @@
     </div>
 
     <script>
-      async function load() {
-        const url = new URL(location.href);
-        const uname = url.searchParams.get("username");
-        if (!uname) return;
-        editlink.href = "/edit.html?username=" + encodeURIComponent(uname);
-
-        const d = await fetch(
-          "/api/user?username=" + encodeURIComponent(uname)
-        ).then((r) => r.json());
-        if (!d.user) return;
-
-        title.textContent = d.user.username;
-        icon.src = d.user.iconURL || "";
-
-        let html = d.user.body
+      function wikiToHtml(str) {
+        if (!str) return "";
+        return str
+          .replace(/\n/g, "<br>")
           .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
           .replace(/\*(.*?)\*/g, "<i>$1</i>")
           .replace(/__(.*?)__/g, "<u>$1</u>")
           .replace(/~~(.*?)~~/g, "<del>$1</del>")
           .replace(/### (.*)/g, "<h3>$1</h3>")
-          .replace(/## (.*)/g, "<h2>$1</h2>");
+          .replace(/## (.*)/g, "<h2>$1</h2>")
+          .replace(
+            /\[size=(\d+)\](.*?)\[\/size\]/g,
+            '<span style="font-size:$1px">$2</span>'
+          );
+      }
 
-        bodydiv.innerHTML = html;
+      async function load() {
+        const url = new URL(location.href);
+        const uname = url.searchParams.get("username");
+        if (!uname) return;
+        editlink.href = "/edit.html?username=" + encodeURIComponent(uname);
+        historylink.href =
+          "/history.html?username=" + encodeURIComponent(uname);
+        const d = await fetch(
+          "/api/user?username=" + encodeURIComponent(uname)
+        ).then((r) => r.json());
+        if (!d.user) return;
+        title.textContent = d.user.username;
+        icon.src = d.user.icon || "";
+        bodydiv.innerHTML = wikiToHtml(d.user.body);
       }
       load();
     </script>
