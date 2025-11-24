@@ -26,11 +26,15 @@
             : "???";
           const div = document.createElement("div");
           div.className = "tile";
-          div.innerHTML = `<img class="tile-icon" src="${u.icon || ""}">
-      <div class="tile-title"><a href="/view.html?username=${encodeURIComponent(
-        u.username
-      )}">${u.username}</a></div>
-      <div class="tile-small">IP: ${maskIP}</div>`;
+          div.innerHTML = `
+  <img class="tile-icon" src="${u.icon || ""}">
+  <div class="tile-title">
+    <a href="/view.html?username=${encodeURIComponent(u.username)}">${
+            u.username
+          }</a>
+  </div>
+  <!-- IP表示削除 -->
+`;
           box.appendChild(div);
         });
       }

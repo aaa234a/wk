@@ -32,7 +32,7 @@ MongoClient.connect(MONGO_URL)
 // --- ページ編集 ---
 app.post("/api/edit", async (req, res) => {
   const { username, body } = req.body;
-  const ip = req.headers["x-forwarded-for"] || req.ip;
+
   if (!username) return res.json({ error: "ユーザー名必須" });
 
   const cleanBody = sanitizeHtml(body, {
@@ -56,14 +56,9 @@ app.post("/api/edit", async (req, res) => {
   await db.collection("users").updateOne(
     { username },
     {
-      $set: { username, body: cleanBody, lastEditorIP: ip },
+      $set: { username, body: cleanBody },
       $push: {
-        history: {
-          time: Date.now(),
-          ip,
-          masked: ip.replace(/\.\d+$/, ".*"),
-          raw: cleanBody,
-        },
+        history: { time: Date.now(), raw: cleanBody }, // IPなし
       },
     },
     { upsert: true }
