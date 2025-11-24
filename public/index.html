@@ -2,10 +2,9 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Mツイート非公式Wiki</title>
+    <title>MツイートWiki</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-
   <body>
     <div id="sidebar">
       <h2>Mツイート Wiki</h2>
@@ -22,12 +21,10 @@
       async function load() {
         const pages = await fetch("/api/pages").then((r) => r.json());
         const users = await fetch("/api/users").then((r) => r.json());
-
         const ipToIcon = {};
         users.forEach((u) => (ipToIcon[u.name] = u.icon));
 
         const box = document.getElementById("tiles");
-
         pages.forEach((p) => {
           const icon = ipToIcon[p.lastEditorIP] || "";
           const maskIP = p.lastEditorIP
@@ -36,19 +33,14 @@
 
           const div = document.createElement("div");
           div.className = "tile";
-
-          div.innerHTML = `
-      <img class="tile-icon" src="${icon || ""}">
-      <div class="tile-title">
-        <a href="/view.html?page=${encodeURIComponent(p.name)}">${p.name}</a>
-      </div>
-      <div class="tile-small">編集者: ${maskIP}</div>
-    `;
-
+          div.innerHTML = `<img class="tile-icon" src="${icon}"><div class="tile-title"><a href="/view.html?page=${encodeURIComponent(
+            p.name
+          )}">${
+            p.name
+          }</a></div><div class="tile-small">編集者: ${maskIP}</div>`;
           box.appendChild(div);
         });
       }
-
       load();
     </script>
   </body>

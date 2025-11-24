@@ -5,7 +5,6 @@
     <title>ページ編集</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-
   <body>
     <div id="sidebar">
       <a href="/">← ホーム</a><br />
@@ -14,7 +13,6 @@
 
     <div id="content">
       <h1>ページ編集</h1>
-
       <label>ページ名</label><br />
       <input id="pagename" style="width: 300px" /><br /><br />
 
@@ -25,9 +23,7 @@
       <button id="savebtn">保存</button>
 
       <hr />
-
       <h2>アイコン設定</h2>
-
       <p>あなたのアイコンを変更できます。（最大3MB）</p>
 
       <form id="iconForm">
@@ -44,25 +40,19 @@
     </div>
 
     <script>
-      // アイコンプレビュー
       document.getElementById("iconFile").onchange = (e) => {
         const f = e.target.files[0];
         if (!f) return;
-
         const r = new FileReader();
         r.onload = () => (document.getElementById("iconPrev").src = r.result);
         r.readAsDataURL(f);
       };
-
-      // アイコン送信
       document.getElementById("iconForm").onsubmit = async (e) => {
         e.preventDefault();
         const file = iconFile.files[0];
         if (!file) return alert("画像を選んでください！");
-
         const fd = new FormData();
         fd.append("icon", file);
-
         const res = await fetch("/api/icon", { method: "POST", body: fd }).then(
           (r) => r.json()
         );
@@ -70,14 +60,11 @@
         else alert("保存しました！");
       };
 
-      // ページ読み込み
       async function load() {
         const url = new URL(location.href);
         const name = url.searchParams.get("page");
         if (!name) return;
-
         pagename.value = name;
-
         const d = await fetch(
           "/api/page?name=" + encodeURIComponent(name)
         ).then((r) => r.json());
@@ -85,17 +72,14 @@
       }
       load();
 
-      // 保存
       document.getElementById("savebtn").onclick = async () => {
         const name = pagename.value.trim();
         if (!name) return alert("ページ名が必要");
-
         const res = await fetch("/api/edit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, body: body.value }),
         }).then((r) => r.json());
-
         if (res.error) alert(res.error);
         else location.href = "/view.html?page=" + encodeURIComponent(name);
       };

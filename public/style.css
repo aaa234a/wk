@@ -1,4 +1,3 @@
-/* ======== 基本レイアウト ======== */
 body {
   margin: 0;
   font-family: "Helvetica Neue", "Arial", "Noto Sans JP", sans-serif;
@@ -7,7 +6,6 @@ body {
   line-height: 1.6;
 }
 
-/* リンクはWikipedia風の青 */
 a {
   color: #0645ad;
   text-decoration: none;
@@ -16,16 +14,15 @@ a:hover {
   text-decoration: underline;
 }
 
-/* ======== サイドバー ======== */
 #sidebar {
   width: 200px;
-  background: #ffffff;
+  background: #fff;
   border-right: 1px solid #a2a9b1;
   padding: 15px;
   position: fixed;
-  left: 0;
   top: 0;
   bottom: 0;
+  left: 0;
   overflow-y: auto;
 }
 
@@ -37,7 +34,6 @@ a:hover {
   margin-bottom: 10px;
 }
 
-/* ======== メインコンテンツ ======== */
 #content {
   margin-left: 230px;
   padding: 20px;
@@ -49,7 +45,6 @@ a:hover {
   border-bottom: 1px solid #a2a9b1;
   padding-bottom: 6px;
 }
-
 #content h2 {
   font-size: 22px;
   border-bottom: 1px solid #c8ccd1;
@@ -57,29 +52,25 @@ a:hover {
   margin-top: 30px;
 }
 
-/* ======== ページボックス（カテゴリっぽいやつ） ======== */
 .page-box {
   border: 1px solid #a2a9b1;
   padding: 10px;
-  background: #ffffff;
+  background: #fff;
   border-radius: 4px;
   cursor: pointer;
   transition: 0.15s;
 }
-
 .page-box:hover {
   background: #f0f2f5;
 }
 
-/* ======== 編集画面用 ======== */
 textarea {
   font-family: monospace;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #a2a9b1;
   border-radius: 4px;
   padding: 10px;
 }
-
 button {
   background: #f8f9fa;
   border: 1px solid #a2a9b1;
@@ -89,44 +80,65 @@ button {
   transition: 0.15s;
   margin-right: 5px;
 }
-
 button:hover {
   background: #e6e8eb;
 }
 
-/* ======== ユーザーアイコン ======== */
 .user-icon {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: #e0e0e0;
   object-fit: cover;
   margin-bottom: 5px;
 }
-
-/* ======== 履歴ボックス ======== */
 .history-box {
   border: 1px solid #c8ccd1;
-  background: #ffffff;
+  background: #fff;
   padding: 10px;
   margin-bottom: 10px;
   border-radius: 4px;
 }
 
-/* ======== テーブル（必要なら） ======== */
 table {
   border-collapse: collapse;
   width: 100%;
   margin-top: 12px;
 }
-
 table th,
 table td {
   border: 1px solid #a2a9b1;
   padding: 5px 8px;
   background: #fff;
 }
-
 table th {
   background: #f5f5f5;
+}
+
+.tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tile {
+  border: 1px solid #a2a9b1;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+  width: 150px;
+  text-align: center;
+}
+.tile img.tile-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 5px;
+}
+.tile-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.tile-small {
+  font-size: 12px;
+  color: #555;
 }

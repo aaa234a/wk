@@ -1,88 +1,80 @@
 const express = require("express");
-const app = express();
 const { MongoClient } = require("mongodb");
-const sanitizeHtml = require("sanitize-html");
+const bodyParser = require("body-parser");
 const multer = require("multer");
+const sanitizeHtml = require("sanitize-html");
+const cors = require("cors");
 
-app.use(express.json({ limit: "4mb" }));
-app.use(express.urlencoded({ extended: true }));
+const app = express();
+const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
+
+const MONGO_URL = process.env.MONGO_URI;
+if (!MONGO_URL) {
+  console.error("ERROR: MONGO_URI が設定されていません！");
+  process.exit(1);
+}
+
+let db;
+MongoClient.connect(MONGO_URL)
+  .then((client) => {
+    db = client.db("wiki");
+    console.log("MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
+  });
+
+app.use(cors());
+app.use(bodyParser.json());
 app.use(express.static("public"));
 
-const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } });
+// --- ページ編集 ---
+app.post("/api/edit", async (req, res) => {
+  const { name, body } = req.body;
+  const ip = req.ip;
 
-const MONGO_URL = process.env.MONGO_URL;
-let db;
+  if (!name) return res.json({ error: "ページ名が必要" });
 
-// --- XSS & 暴言フィルタ ----------------------------------
-function badWords(text) {
-  const ng = ["死ね", "殺す", "<script", "javascript:"];
-  return ng.some((w) => text.includes(w));
-}
-
-function safe(text) {
-  return sanitizeHtml(text, {
-    allowedTags: [
-      "b",
-      "i",
-      "u",
-      "strong",
-      "em",
-      "p",
-      "br",
-      "ul",
-      "ol",
-      "li",
-      "span",
-      "h1",
-      "h2",
-      "h3",
-      "small",
-      "big",
-    ],
-    allowedAttributes: {
-      span: ["style"],
-      p: ["style"],
-      h1: ["style"],
-      h2: ["style"],
-      h3: ["style"],
+  await db.collection("pages").updateOne(
+    { name },
+    {
+      $set: { name, body, lastEditorIP: ip },
+      $push: {
+        history: {
+          time: Date.now(),
+          ip,
+          masked: ip.replace(/\.\d+$/, ".*"),
+          raw: body,
+        },
+      },
     },
-  });
-}
+    { upsert: true }
+  );
 
-// --- DB 接続 --------------------------------------------
-MongoClient.connect(MONGO_URL).then((client) => {
-  db = client.db("wiki");
-  console.log("MongoDB connected");
+  res.json({ ok: true });
 });
 
-// --- ページ取得 -----------------------------------------
-app.get("/api/page/:title", async (req, res) => {
-  const p = await db.collection("pages").findOne({ title: req.params.title });
-  if (!p)
-    return res.json({
-      title: req.params.title,
-      content: "（まだページがありません）",
-    });
-  res.json(p);
+// --- ページ取得 ---
+app.get("/api/page", async (req, res) => {
+  const name = req.query.name;
+  const page = await db.collection("pages").findOne({ name });
+  res.json({ page });
 });
 
-// --- ページ一覧 ------------------------------------------
+// --- ページ一覧 ---
 app.get("/api/pages", async (req, res) => {
-  const list = await db
-    .collection("pages")
-    .find()
-    .project({ title: 1 })
-    .toArray();
-  res.json(list);
+  const pages = await db.collection("pages").find({}).toArray();
+  res.json(pages);
 });
 
-// --- ユーザー一覧 ----------------------------------------
+// --- ユーザー一覧 ---
 app.get("/api/users", async (req, res) => {
-  const users = await db.collection("users").find().toArray();
+  const users = await db.collection("users").find({}).toArray();
   res.json(users);
 });
 
-// --- アイコンアップロード --------------------------------
+// --- アイコンアップロード ---
 app.post("/api/icon", upload.single("icon"), async (req, res) => {
   const ip = req.ip;
   if (!req.file) return res.json({ error: "ファイルが必要です" });
@@ -100,58 +92,8 @@ app.post("/api/icon", upload.single("icon"), async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- 保存（履歴つき） ------------------------------------
-app.post("/api/save", async (req, res) => {
-  const { title, raw } = req.body;
-  const ip = req.ip;
-
-  if (badWords(raw)) return res.json({ error: "禁止ワードが含まれています" });
-
-  const clean = safe(raw);
-
-  await db.collection("pages").updateOne(
-    { title },
-    {
-      $set: { title, content: clean },
-      $push: {
-        history: {
-          time: Date.now(),
-          ip: ip,
-          masked: ip.replace(/(\\d+\\.\\d+\\.)(\\d+\\.\\d+)/, "$1***.***"),
-          raw: clean,
-        },
-      },
-    },
-    { upsert: true }
-  );
-
-  res.json({ ok: true });
+// --- サーバ起動 ---
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Wiki running http://localhost:${PORT}`);
 });
-
-// --- 履歴取得 --------------------------------------------
-app.get("/api/history/:title", async (req, res) => {
-  const p = await db.collection("pages").findOne({ title: req.params.title });
-  res.json(p?.history || []);
-});
-
-// --- 2日以内復元 -----------------------------------------
-app.post("/api/restore", async (req, res) => {
-  const { title, time } = req.body;
-
-  const p = await db.collection("pages").findOne({ title });
-  if (!p) return res.json({ error: "ページがない" });
-
-  const h = p.history.find((x) => x.time === time);
-  if (!h) return res.json({ error: "履歴がない" });
-
-  if (Date.now() - h.time > 172800000)
-    return res.json({ error: "2日を超えています" });
-
-  await db
-    .collection("pages")
-    .updateOne({ title }, { $set: { content: h.raw } });
-
-  res.json({ ok: true });
-});
-
-app.listen(3000, () => console.log("Wiki running http://localhost:3000"));

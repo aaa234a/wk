@@ -1,48 +1,59 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>履歴</title>
-  <link rel="stylesheet" href="style.css">
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <title>履歴</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="sidebar">
+      <a href="/">← ホーム</a><br />
+      <a id="editlink">編集ページへ</a><br />
+    </div>
 
-<body>
-<div id="sidebar">
-  <a href="/">← ホーム</a>
-</div>
+    <div id="content">
+      <h1>ページ履歴</h1>
+      <div id="historyBox"></div>
+    </div>
 
-<div id="content">
-  <h1>履歴</h1>
-  <div id="list"></div>
-</div>
+    <script>
+      async function loadHistory() {
+        const url = new URL(location.href);
+        const name = url.searchParams.get("page");
+        if (!name) return;
+        editlink.href = "/edit.html?page=" + encodeURIComponent(name);
 
-<script>
-  const p = new URL(location).searchParams.get("title");
+        const d = await fetch(
+          "/api/page?name=" + encodeURIComponent(name)
+        ).then((r) => r.json());
+        if (!d.page || !d.page.history) return;
 
-  fetch("/api/history/"+p).then(r=>r.json()).then(list=>{
-    const box = document.getElementById("list");
-    list.reverse().forEach(h=>{
-      const d = document.createElement("div");
-      d.className = "page-box";
-      d.innerHTML = `
-        <div>${new Date(h.time).toLocaleString()}</div>
-        <div>編集者IP: ${h.masked}</div>
-        <button onclick="restore(${h.time})">この版に戻す</button>
-      `;
-      box.appendChild(d);
-    });
-  });
+        const box = document.getElementById("historyBox");
+        const users = await fetch("/api/users").then((r) => r.json());
 
-  function restore(t){
-    fetch("/api/restore",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({title:p, time:t})
-    }).then(r=>r.json()).then(d=>{
-      if(d.error) alert(d.error);
-      else location.href="/view.html?title="+encodeURIComponent(p);
-    });
-  }
-</script>
-</body>
+        d.page.history
+          .slice()
+          .reverse()
+          .forEach((h) => {
+            const user = users.find((u) => u.name === h.ip);
+            const icon = user ? user.icon : "";
+            const div = document.createElement("div");
+            div.className = "history-box";
+            const date = new Date(h.time).toLocaleString();
+            // Wiki記法変換
+            let html = h.raw
+              .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+              .replace(/\*(.*?)\*/g, "<i>$1</i>")
+              .replace(/__(.*?)__/g, "<u>$1</u>")
+              .replace(/~~(.*?)~~/g, "<del>$1</del>")
+              .replace(/### (.*)/g, "<h3>$1</h3>")
+              .replace(/## (.*)/g, "<h2>$1</h2>");
+
+            div.innerHTML = `<img src="${icon}" class="user-icon"><div><b>編集者:</b> ${h.masked} | <b>日時:</b> ${date}</div><div>${html}</div>`;
+            box.appendChild(div);
+          });
+      }
+      loadHistory();
+    </script>
+  </body>
 </html>

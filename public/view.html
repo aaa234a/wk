@@ -5,7 +5,6 @@
     <title>ページ表示</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-
   <body>
     <div id="sidebar">
       <a href="/">← ホーム</a><br />
@@ -18,7 +17,6 @@
       <div id="pagebody" class="wikibody"></div>
 
       <hr />
-
       <h3>最終編集者</h3>
       <div id="editorBox"></div>
     </div>
@@ -28,7 +26,6 @@
         const url = new URL(location.href);
         const name = url.searchParams.get("page");
         if (!name) return;
-
         editlink.href = "/edit.html?page=" + encodeURIComponent(name);
         historylink.href = "/history.html?page=" + encodeURIComponent(name);
 
@@ -36,30 +33,27 @@
           "/api/page?name=" + encodeURIComponent(name)
         ).then((r) => r.json());
         if (!d.page) return;
-
         title.textContent = d.page.name;
 
-        const html = d.page.body
-          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-          .replace(/__(.*?)__/g, "<u>$1</u>")
-          .replace(/##(.*?)##/g, "<h2>$1</h2>");
+        // --- Wiki記法変換 ---
+        let html = d.page.body
+          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>") // 太文字
+          .replace(/\*(.*?)\*/g, "<i>$1</i>") // 斜体
+          .replace(/__(.*?)__/g, "<u>$1</u>") // 下線
+          .replace(/~~(.*?)~~/g, "<del>$1</del>") // 打ち消し線
+          .replace(/### (.*)/g, "<h3>$1</h3>") // 小見出し
+          .replace(/## (.*)/g, "<h2>$1</h2>"); // 見出し
 
         pagebody.innerHTML = html;
 
-        // アイコン
         const users = await fetch("/api/users").then((r) => r.json());
         const ip = d.page.lastEditorIP;
         const user = users.find((u) => u.name === ip);
         const icon = user ? user.icon : "";
-
         const maskIP = ip ? ip.replace(/\.\d+$/, ".*") : "???";
 
-        editorBox.innerHTML = `
-    <img src="${icon || ""}" style="width:70px;height:70px;border-radius:50%;">
-    <div>IP: ${maskIP}</div>
-  `;
+        editorBox.innerHTML = `<img src="${icon}" style="width:70px;height:70px;border-radius:50%;"><div>IP: ${maskIP}</div>`;
       }
-
       load();
     </script>
   </body>
