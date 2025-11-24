@@ -11,6 +11,6 @@
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "sanitize-html": "^2.12.1",
-    "multer": "^2.5.0"
+    "multer": "^2.0.2"
   }
 }
