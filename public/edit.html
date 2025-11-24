@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Edit</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <a href="/">← ホーム</a>
+    </div>
+
+    <div id="content">
+      <h1 id="title"></h1>
+
+      <div>
+        <button onclick="add('<b>','</b>')">太字</button>
+        <button onclick="add('<i>','</i>')">斜体</button>
+        <button onclick="add('<u>','</u>')">下線</button>
+
+        <button onclick="add('<h2>','</h2>')">見出し</button>
+      </div>
+
+      <textarea
+        id="t"
+        style="width: 100%; height: 300px; margin-top: 10px"
+      ></textarea
+      ><br />
+      <button onclick="save()">保存</button>
+    </div>
+
+    <script>
+      const p = new URL(location).searchParams.get("title");
+      document.getElementById("title").textContent = p;
+
+      fetch("/api/page/" + p)
+        .then((r) => r.json())
+        .then((d) => {
+          document.getElementById("t").value = d.content.replace(/<br>/g, "\n");
+        });
+
+      function add(a, b) {
+        const t = document.getElementById("t");
+        const s = t.selectionStart;
+        const e = t.selectionEnd;
+        t.value =
+          t.value.slice(0, s) + a + t.value.slice(s, e) + b + t.value.slice(e);
+      }
+
+      function save() {
+        fetch("/api/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: p,
+            raw: document.getElementById("t").value,
+          }),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.error) alert(d.error);
+            else location.href = "/view.html?title=" + encodeURIComponent(p);
+          });
+      }
+    </script>
+  </body>
+</html>

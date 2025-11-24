@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>履歴</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div id="sidebar">
+  <a href="/">← ホーム</a>
+</div>
+
+<div id="content">
+  <h1>履歴</h1>
+  <div id="list"></div>
+</div>
+
+<script>
+  const p = new URL(location).searchParams.get("title");
+
+  fetch("/api/history/"+p).then(r=>r.json()).then(list=>{
+    const box = document.getElementById("list");
+    list.reverse().forEach(h=>{
+      const d = document.createElement("div");
+      d.className = "page-box";
+      d.innerHTML = `
+        <div>${new Date(h.time).toLocaleString()}</div>
+        <div>編集者IP: ${h.masked}</div>
+        <button onclick="restore(${h.time})">この版に戻す</button>
+      `;
+      box.appendChild(d);
+    });
+  });
+
+  function restore(t){
+    fetch("/api/restore",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({title:p, time:t})
+    }).then(r=>r.json()).then(d=>{
+      if(d.error) alert(d.error);
+      else location.href="/view.html?title="+encodeURIComponent(p);
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ページ表示</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div id="sidebar">
+      <a href="/">← ホーム</a><br />
+      <a id="editBtn">編集</a><br />
+      <a id="historyBtn">履歴</a><br />
+    </div>
+
+    <div id="content">
+      <h1 id="title"></h1>
+      <div id="body"></div>
+    </div>
+
+    <script>
+      const p = new URL(location).searchParams.get("title");
+
+      fetch("/api/page/" + p)
+        .then((r) => r.json())
+        .then((d) => {
+          document.getElementById("title").textContent = d.title;
+          document.getElementById("body").innerHTML = d.content;
+        });
+
+      document.getElementById("editBtn").onclick = () =>
+        (location.href = "/edit.html?title=" + encodeURIComponent(p));
+
+      document.getElementById("historyBtn").onclick = () =>
+        (location.href = "/history.html?title=" + encodeURIComponent(p));
+    </script>
+  </body>
+</html>

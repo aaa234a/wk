@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>mツイートWiki</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="sidebar">
+      <h3>ナビゲーション</h3>
+      <a href="/">ホーム</a><br />
+      <a href="/users.html">ユーザー一覧</a><br />
+      <a href="/pages.html">ページ一覧</a><br />
+    </div>
+
+    <div id="content">
+      <h1>mツイート 非公式Wiki</h1>
+
+      <h2>ユーザー一覧</h2>
+      <div
+        id="users"
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fill, 140px);
+          gap: 10px;
+        "
+      ></div>
+
+      <script>
+        fetch("/api/users")
+          .then((r) => r.json())
+          .then((list) => {
+            const box = document.getElementById("users");
+            list.forEach((u) => {
+              const d = document.createElement("div");
+              d.className = "page-box";
+              d.innerHTML = `
+          <div style="text-align:center">
+            <img src="${
+              u.icon || ""
+            }" style="width:60px;height:60px;border-radius:50%;background:#eee">
+            <div>${u.name}</div>
+          </div>`;
+              d.onclick = () =>
+                (location.href =
+                  "/view.html?title=" + encodeURIComponent(u.name));
+              box.appendChild(d);
+            });
+          });
+      </script>
+    </div>
+  </body>
+</html>
