@@ -19,10 +19,32 @@ if (!MONGO_URL) {
 }
 
 let db;
+
+// ---- メモリキャッシュ ----
+let userCache = {};   // username → user object
+let userListCache = []; // 全ユーザー配列
+
+// ---- キャッシュ更新関数 ----
+async function loadCache() {
+  console.log("Loading cache from MongoDB...");
+  const users = await db.collection("users").find({}).toArray();
+
+  userCache = {};
+  users.forEach((u) => {
+    userCache[u.username] = u;
+  });
+
+  userListCache = users;
+
+  console.log("Cache ready: " + users.length + " users loaded");
+}
+
+// ---- MongoDB 接続 ----
 MongoClient.connect(MONGO_URL)
-  .then((client) => {
+  .then(async (client) => {
     db = client.db("wiki");
     console.log("MongoDB connected");
+    await loadCache(); // ★ 起動時キャッシュ
   })
   .catch((err) => {
     console.error(err);
@@ -36,53 +58,61 @@ app.post("/api/edit", async (req, res) => {
   if (!username) return res.json({ error: "ユーザー名必須" });
 
   const cleanBody = sanitizeHtml(body, {
-    allowedTags: [
-      "b",
-      "i",
-      "u",
-      "del",
-      "span",
-      "h2",
-      "h3",
-      "p",
-      "br",
-      "ul",
-      "ol",
-      "li",
-    ],
+    allowedTags: ["b", "i", "u", "del", "span", "h2", "h3", "p", "br", "ul", "ol", "li"],
     allowedAttributes: { span: ["style"] },
   });
+
+  const update = {
+    username,
+    body: cleanBody,
+  };
 
   await db.collection("users").updateOne(
     { username },
     {
-      $set: { username, body: cleanBody },
+      $set: update,
       $push: {
-        history: { time: Date.now(), raw: cleanBody }, // IPなし
+        history: { time: Date.now(), raw: cleanBody },
       },
     },
     { upsert: true }
   );
+
+  // ---- キャッシュ更新 ----
+  if (!userCache[username]) {
+    userListCache.push(update);
+  }
+
+  userCache[username] = {
+    ...(userCache[username] || {}),
+    ...update,
+  };
 
   res.json({ ok: true });
 });
 
 // --- アイコンアップロード ---
 app.post("/api/icon", upload.single("icon"), async (req, res) => {
-  const ip = req.headers["x-forwarded-for"] || req.ip;
   const username = req.body.username;
+
   if (!req.file || !username)
     return res.json({ error: "画像とユーザー名必須" });
 
   const base64 = "data:image/png;base64," + req.file.buffer.toString("base64");
 
-  await db
-    .collection("users")
-    .updateOne(
-      { username },
-      { $set: { username, icon: base64 } },
-      { upsert: true }
-    );
+  await db.collection("users").updateOne(
+    { username },
+    { $set: { username, icon: base64 } },
+    { upsert: true }
+  );
+
+  // ---- キャッシュ反映 ----
+  if (!userCache[username]) {
+    userCache[username] = { username, icon: base64 };
+    userListCache.push(userCache[username]);
+  } else {
+    userCache[username].icon = base64;
+  }
 
   res.json({ ok: true });
 });
@@ -90,14 +120,15 @@ app.post("/api/icon", upload.single("icon"), async (req, res) => {
 // --- ユーザー取得 ---
 app.get("/api/user", async (req, res) => {
   const username = req.query.username;
-  const user = await db.collection("users").findOne({ username });
-  res.json({ user });
+
+  // ★ キャッシュ返す
+  res.json({ user: userCache[username] || null });
 });
 
 // --- ユーザー一覧 ---
 app.get("/api/users", async (req, res) => {
-  const users = await db.collection("users").find({}).toArray();
-  res.json(users);
+  // ★ キャッシュ返す
+  res.json(userListCache);
 });
 
 const PORT = process.env.PORT || 3000;
