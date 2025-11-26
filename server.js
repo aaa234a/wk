@@ -64,11 +64,21 @@ app.post("/api/edit", async (req, res) => {
     }
   });
 
+  // ★ クライアント IP を取得
+  const ip =
+    req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.ip;
+
   await db.collection("users").updateOne(
     { username },
     {
       $set: { username, body: cleanBody },
-      $push: { history: { time: Date.now(), raw: cleanBody } }
+      $push: {
+        history: {
+          time: Date.now(),
+          raw: cleanBody,
+          ip: ip   // ← ★ IP を記録！
+        }
+      }
     },
     { upsert: true }
   );
@@ -83,6 +93,7 @@ app.post("/api/edit", async (req, res) => {
 
   res.json({ ok: true });
 });
+
 
 // ---- アイコンアップロード ----
 app.post("/api/icon", upload.single("icon"), async (req, res) => {
