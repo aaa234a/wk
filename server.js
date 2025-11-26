@@ -6,7 +6,7 @@ const sanitizeHtml = require("sanitize-html");
 const cors = require("cors");
 
 const app = express();
-const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
+const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -21,10 +21,18 @@ if (!MONGO_URL) {
 let db;
 
 // ---- メモリキャッシュ ----
-let userCache = {};   // username → user object
-let userListCache = []; // 全ユーザー配列
+let userCache = {};      // username → user object
+let userListCache = [];  // 全ユーザー配列
 
-// ---- キャッシュ更新関数 ----
+// ---- URL を a タグへ変換 ----
+function autoLink(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+}
+
+// ---- キャッシュ読み込み ----
 async function loadCache() {
   console.log("Loading cache from MongoDB...");
   const users = await db.collection("users").find({}).toArray();
@@ -35,16 +43,16 @@ async function loadCache() {
   });
 
   userListCache = users;
-
   console.log("Cache ready: " + users.length + " users loaded");
 }
 
-// ---- MongoDB 接続 ----
+// ---- MongoDB 接続後キャッシュロード ----
 MongoClient.connect(MONGO_URL)
   .then(async (client) => {
     db = client.db("wiki");
     console.log("MongoDB connected");
-    await loadCache(); // ★ 起動時キャッシュ
+
+    await loadCache();  // ★起動時キャッシュ
   })
   .catch((err) => {
     console.error(err);
@@ -57,36 +65,47 @@ app.post("/api/edit", async (req, res) => {
 
   if (!username) return res.json({ error: "ユーザー名必須" });
 
-  const cleanBody = sanitizeHtml(body, {
-    allowedTags: ["b", "i", "u", "del", "span", "h2", "h3", "p", "br", "ul", "ol", "li"],
-    allowedAttributes: { span: ["style"] },
+  // URL を自動リンク化
+  const linkedBody = autoLink(body);
+
+  const cleanBody = sanitizeHtml(linkedBody, {
+    allowedTags: [
+      "b", "i", "u", "del", "span", "h2", "h3",
+      "p", "br", "ul", "ol", "li", "a"
+    ],
+    allowedAttributes: {
+      span: ["style"],
+      a: ["href", "target", "rel"]
+    }
   });
 
-  const update = {
+  const updatedUser = {
     username,
-    body: cleanBody,
+    body: cleanBody
   };
 
   await db.collection("users").updateOne(
     { username },
     {
-      $set: update,
-      $push: {
-        history: { time: Date.now(), raw: cleanBody },
-      },
+      $set: updatedUser,
+      $push: { history: { time: Date.now(), raw: cleanBody } }
     },
     { upsert: true }
   );
 
   // ---- キャッシュ更新 ----
-  if (!userCache[username]) {
-    userListCache.push(update);
-  }
-
   userCache[username] = {
     ...(userCache[username] || {}),
-    ...update,
+    ...updatedUser
   };
+
+  // userListCache も更新
+  const idx = userListCache.findIndex(u => u.username === username);
+  if (idx >= 0) {
+    userListCache[idx] = userCache[username];
+  } else {
+    userListCache.push(userCache[username]);
+  }
 
   res.json({ ok: true });
 });
@@ -100,34 +119,38 @@ app.post("/api/icon", upload.single("icon"), async (req, res) => {
 
   const base64 = "data:image/png;base64," + req.file.buffer.toString("base64");
 
+  const updatedUser = {
+    username,
+    icon: base64
+  };
+
   await db.collection("users").updateOne(
     { username },
-    { $set: { username, icon: base64 } },
+    { $set: updatedUser },
     { upsert: true }
   );
 
-  // ---- キャッシュ反映 ----
-  if (!userCache[username]) {
-    userCache[username] = { username, icon: base64 };
-    userListCache.push(userCache[username]);
-  } else {
-    userCache[username].icon = base64;
-  }
+  // ---- キャッシュ更新 ----
+  userCache[username] = {
+    ...(userCache[username] || {}),
+    ...updatedUser
+  };
+
+  const idx = userListCache.findIndex(u => u.username === username);
+  if (idx >= 0) userListCache[idx] = userCache[username];
+  else userListCache.push(userCache[username]);
 
   res.json({ ok: true });
 });
 
-// --- ユーザー取得 ---
-app.get("/api/user", async (req, res) => {
+// --- ユーザー取得（★キャッシュ優先） ---
+app.get("/api/user", (req, res) => {
   const username = req.query.username;
-
-  // ★ キャッシュ返す
   res.json({ user: userCache[username] || null });
 });
 
-// --- ユーザー一覧 ---
-app.get("/api/users", async (req, res) => {
-  // ★ キャッシュ返す
+// --- ユーザー一覧（★キャッシュ優先） ---
+app.get("/api/users", (req, res) => {
   res.json(userListCache);
 });
 
