@@ -6,17 +6,13 @@ const sanitizeHtml = require("sanitize-html");
 const cors = require("cors");
 
 const app = express();
-const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } });
+const upload = multer({ limits: { fileSize: 3 * 1024 * 1024 } }); // 3MB
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
 const MONGO_URL = process.env.MONGO_URI;
-if (!MONGO_URL) {
-  console.error("MONGO_URI が必要");
-  process.exit(1);
-}
 
 let db;
 
@@ -24,7 +20,7 @@ let db;
 let userCache = {};      // username → user object
 let userListCache = [];  // 全ユーザー配列
 
-// ---- URL を a タグへ変換 ----
+// ---- URL → a タグへ置換 ----
 function autoLink(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.replace(urlRegex, (url) => {
@@ -38,121 +34,114 @@ async function loadCache() {
   const users = await db.collection("users").find({}).toArray();
 
   userCache = {};
-  users.forEach((u) => {
+  for (const u of users) {
     userCache[u.username] = u;
-  });
+  }
 
   userListCache = users;
-  console.log("Cache ready: " + users.length + " users loaded");
+
+  console.log("Cache ready:", users.length, "users loaded");
 }
 
-// ---- MongoDB 接続後キャッシュロード ----
-MongoClient.connect(MONGO_URL)
-  .then(async (client) => {
-    db = client.db("wiki");
-    console.log("MongoDB connected");
-
-    await loadCache();  // ★起動時キャッシュ
-  })
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-
-// --- ページ編集 ---
+// ---- ページ編集 ----
 app.post("/api/edit", async (req, res) => {
   const { username, body } = req.body;
 
   if (!username) return res.json({ error: "ユーザー名必須" });
 
-  // URL を自動リンク化
-  const linkedBody = autoLink(body);
+  // URL をリンク化
+  const linked = autoLink(body);
 
-  const cleanBody = sanitizeHtml(linkedBody, {
+  const cleanBody = sanitizeHtml(linked, {
     allowedTags: [
-      "b", "i", "u", "del", "span", "h2", "h3",
-      "p", "br", "ul", "ol", "li", "a"
+      "b", "i", "u", "del", "span",
+      "h2", "h3", "p", "br",
+      "ul", "ol", "li", "a"
     ],
     allowedAttributes: {
       span: ["style"],
-      a: ["href", "target", "rel"]
+      a: ["href", "target", "rel"],
     }
   });
-
-  const updatedUser = {
-    username,
-    body: cleanBody
-  };
 
   await db.collection("users").updateOne(
     { username },
     {
-      $set: updatedUser,
+      $set: { username, body: cleanBody },
       $push: { history: { time: Date.now(), raw: cleanBody } }
     },
     { upsert: true }
   );
 
   // ---- キャッシュ更新 ----
-  userCache[username] = {
-    ...(userCache[username] || {}),
-    ...updatedUser
-  };
-
-  // userListCache も更新
-  const idx = userListCache.findIndex(u => u.username === username);
-  if (idx >= 0) {
-    userListCache[idx] = userCache[username];
-  } else {
+  if (!userCache[username]) {
+    userCache[username] = { username, body: cleanBody };
     userListCache.push(userCache[username]);
+  } else {
+    userCache[username].body = cleanBody;
   }
 
   res.json({ ok: true });
 });
 
-// --- アイコンアップロード ---
+// ---- アイコンアップロード ----
 app.post("/api/icon", upload.single("icon"), async (req, res) => {
   const username = req.body.username;
-
   if (!req.file || !username)
     return res.json({ error: "画像とユーザー名必須" });
 
-  const base64 = "data:image/png;base64," + req.file.buffer.toString("base64");
-
-  const updatedUser = {
-    username,
-    icon: base64
-  };
+  const base64 =
+    "data:image/png;base64," + req.file.buffer.toString("base64");
 
   await db.collection("users").updateOne(
     { username },
-    { $set: updatedUser },
+    { $set: { username, icon: base64 } },
     { upsert: true }
   );
 
   // ---- キャッシュ更新 ----
-  userCache[username] = {
-    ...(userCache[username] || {}),
-    ...updatedUser
-  };
-
-  const idx = userListCache.findIndex(u => u.username === username);
-  if (idx >= 0) userListCache[idx] = userCache[username];
-  else userListCache.push(userCache[username]);
+  if (!userCache[username]) {
+    userCache[username] = { username, icon: base64 };
+    userListCache.push(userCache[username]);
+  } else {
+    userCache[username].icon = base64;
+  }
 
   res.json({ ok: true });
 });
 
-// --- ユーザー取得（★キャッシュ優先） ---
+// ---- ユーザー取得（キャッシュ100%優先） ----
 app.get("/api/user", (req, res) => {
   const username = req.query.username;
   res.json({ user: userCache[username] || null });
 });
 
-// --- ユーザー一覧（★キャッシュ優先） ---
+// ---- ユーザー一覧（キャッシュ100%優先） ----
 app.get("/api/users", (req, res) => {
   res.json(userListCache);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Wiki running http://localhost:${PORT}`));
+// ---- ★ここが今回の最大の修正ポイント ----
+// ---- MongoDB → キャッシュ読み込み → listen ----
+
+async function startServer() {
+  if (!MONGO_URL) {
+    console.error("MONGO_URI が指定されていません");
+    process.exit(1);
+  }
+
+  console.log("Connecting to MongoDB...");
+  const client = await MongoClient.connect(MONGO_URL);
+  db = client.db("wiki");
+  console.log("MongoDB connected");
+
+  await loadCache(); // ← キャッシュのロードを listen より前に実行する！
+
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Wiki running http://localhost:${PORT}`);
+  });
+}
+
+// ---- サーバーを起動 ----
+startServer();
